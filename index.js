@@ -1,20 +1,19 @@
-export default (config, options) => {
-	// find any first matching rule that contains postcss-loader
-	filterPostCSSLoader(config.module.rules).forEach(rule => {
-		filterPostCSSLoader(rule.oneOf).forEach(oneOf => {
-			filterPostCSSLoader(oneOf.use).forEach(use => {
-				// use the latest version of postcss-loader
-				use.loader = require.resolve('postcss-loader');
+const matchByRule = rule => rule.use && rule.use.find(l => l.options && l.options.ident === 'postcss')
+const matchByLegacyLoaderConfig = rule => rules && rules.find(r => r.options && r.options.ident === 'postcss')
 
-				// update the options with your custom configuration
-				Object.assign(use.options, options);
-			})
-		})
-	});
+var index = ((config, env, options) => {
+  const { getLoader } = require('react-app-rewired')
+  const matcher = env === 'production' ? matchByLegacyLoaderConfig : matchByRule
+  const match = getLoader(config.module.rules, matcher)
+  const loaderConfig = env === 'production' ? match.loader.find(l => l.loader.includes('postcss-loader')) : match.use[1]
 
-	// return the mutated configuration
-	return config;
-};
+	// use the latest version of postcss-loader
+  loaderConfig.loader = require.resolve('postcss-loader');
 
-// return a filtered array that includes postcss-loader
-const filterPostCSSLoader = array => array.filter(object => JSON.stringify(object).includes('postcss-loader'));
+  // update the options with your custom configuration
+  Object.assign(loaderConfig.options, options);
+
+  return config;
+});
+
+module.exports = index;
